@@ -2,14 +2,14 @@ from data_agent import DataAgent
 from root_agent import RootAgent
 
 def main():
-    print("Trail Assistant Booted ✔️\n")
+    print("Hey! Your trail buddy is ready to plan a new adventure! ✔️\n")
 
     root_agent = RootAgent()
     data_agent = DataAgent()
     trails = data_agent.load_trails()
 
     # Step 1: Ask user for trail preferences
-    difficulty = input("What difficulty are you looking for? (Easy/Moderate/Hard) ").strip().lower()
+    difficulty = input("What kind of trail are you looking to do? (Easy/Moderate/Hard) ").strip().lower()
     distance_max = input("Maximum distance in km? ").strip()
 
     try:
