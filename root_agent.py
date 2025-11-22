@@ -23,7 +23,8 @@ class RootAgent:
         self.state = {
             "awaiting_input": None,   # "difficulty_choice" or "max_distance"
             "difficulty": None,
-            "max_distance": None
+            "max_distance": None,
+            "selected_trail": None    # Store the chosen trail for weather lookup
         }
 
     # --- Call Gemini AI ---
@@ -84,6 +85,12 @@ class RootAgent:
                     difficulty=self.state["difficulty"],
                     max_distance=distance
                 )
+
+                # Store the first matching trail for weather lookup
+                if filtered_trails:
+                    self.state["selected_trail"] = filtered_trails[0]  # store trail dict
+                else:
+                    self.state["selected_trail"] = None
 
                 # AI summarization of filtered trails
                 prompt = (

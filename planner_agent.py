@@ -6,11 +6,13 @@ class PlannerAgent:
         self.trails = self.data_agent.load_trails()
 
     def get_trails_by_criteria(self, difficulty, max_distance):
+        # Filter the trails as dictionaries
         filtered = [
-            t["Trail"] for t in self.trails
+            t for t in self.trails
             if t["Difficulty"] == difficulty.lower() and t["Distance_km"] <= max_distance
         ]
         if filtered:
-            return f"Here are {difficulty} trails under {max_distance} km: {', '.join(filtered)}."
+            # Return the list of dictionaries
+            return filtered
         else:
-            return f"No {difficulty} trails found under {max_distance} km."
+            return []  # empty list if no trails found
