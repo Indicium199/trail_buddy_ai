@@ -1,16 +1,15 @@
-Trail,Difficulty,Distance_km,Lat,Lng
-Catbells,Moderate,5.6,54.561,-3.135
-Scafell Pike,Hard,12.8,54.454,-3.211
-Fairfield Horseshoe,Hard,16.0,54.46,-2.957
-Mosedale Horseshoe,Hard,17.2,54.443,-3.315
-Helvellyn,Hard,13.5,54.523,-2.742
-Ullswater Way,Moderate,32.0,54.6,-2.9
-Buttermere Haystacks,Moderate,12.9,54.574,-3.22
-Tarn Hows,Easy,2.9,54.433,-2.961
-Orrest Head,Moderate,4.5,54.382,-2.91
-Blencathra,Hard,8.4,54.658,-2.901
-Grasmere Circular,Moderate,6.5,54.452,-3.017
-Loughrigg Fell,Moderate,7.2,54.446,-2.963
-Coniston Old Man,Hard,11.2,54.362,-3.112
-Dunnerdale Fell,Moderate,9.0,54.32,-3.12
-Furness Fells,Hard,13.0,54.3,-3.18
+Trail,Difficulty,Distance_km,Lat,Lng,Duration_hours,Starting_Point,Difficulty_Reason,Route,Views,Fell_Height_ft,Fell_Classification,Region,Suitable_For,
+Ling Fell,Very Easy,4.8,54.701,-3.245,1.5,Wythop Mill,Low height and gentle slopes,Up via the old corpse road then direct to summit; return same way or loop,Views over Bassenthwaite Lake and nearby fells,1224,Wainwright,North Western Fells,Beginners / Families,
+Latrigg,Easy,6.5,54.5941,-3.1183,2,Keswick (Moot Hall), clear track,Little zig-zag climb up from Spooney Green Lane,"Panorama of Keswick, Derwentwater, Skiddaw",1207,Wainwright,Skiddaw Group,Beginners / Casual walkers,
+Catbells,Moderate,8,54.562,-3.135,2.5,Keswick or Hawse End,Steep sections and some scrambling,Ascent via Hause Gate or from Hawse End and back via Borrowdale,"Classic view over Derwentwater, Borrowdale and Catbells ridge",1480,Wainwright,North Western Fells,Bagging / General fell walking,
+Helm Crag,Moderate-Hard,6,54.4605,-3.022,2.5,Grasmere,Steep climb and scramble to summit,"From Grasmere up Easedale Road, zig-zag path and rocky scramble to “Howitzer"",Views over Grasmere", Easedale  and Helvellyn range,1329,Wainwright,Central Fells,Experienced walkers / Those with some scrambling confidence,
+Fairfield (via Horseshoe),Hard,16,54.4624,-2.9635,7,Ambleside (Low Sweden Bridge),Long ridge walk  plateau navigation,Classic Fairfield Horseshoe (Low Pike → High Pike → Dove Crag → Hart Crag → Fairfield →…return),"Broad views over Eastern Fells, Helvellyn, Windermere",2864,Hewitt / Nuttall / Wainwright,Eastern Fells,Experienced fell walkers / Ridge walkers,
+Scafell,Hard,12,54.454,-3.211,6,Seathwaite or Wasdale,Steep  rough terrain,"Long climb from Wasdale or Seathwaite, navigating rocks","Views over Wasdale, Scafell Pike, Great Gable",3163,Hewitt / Nuttall / Wainwright,Southern Fells,Strong walkers / Scramblers,
+Helvellyn (via Striding Edge),Very Hard,13,54.52,-2.944,5.5,Patterdale (Glenridding),Exposure and scrambling on narrow ridge,"Ascent via Striding Edge from Glenridding, descent via Swirral Edge or Grisedale Tarn","Panoramic ridge views, plus Ullswater, Grasmere, and deeper fells",3117,Hewitt / Nuttall / Wainwright,Eastern Fells,Experienced walkers with scrambling skill,
+Walla Crag,Moderate,10.2,54.585,-3.127,3.5,Keswick (Market Square),Steep forest and rocky climb,"Climb from Keswick through Great Wood and Cat Gill, then scramble out to crag","Views over Derwentwater, Borrowdale and Keswick",1243,Wainwright,Central Fells,Day walkers / Families / Photographers,
+High Rigg,Moderate,6.4,54.549,-3.132,2,St John’s in the Vale (near A591),Undulating ridge but low elevation,Loop from church → ridge → hause → valley → return,"Views to Blencathra, Skiddaw, Thirlmere",1134,Wainwright / Marilyn,Central Fells,Beginners with some hill experience,
+Great Mell Fell,Moderate,3.4,54.52,-2.948,1.6,Brownrigg Farm (near Matterdale End),Grassy but steep in places,"Up via eastern ridge or from Brownrigg Farm, panoramic ridge; return same or via loop","Wide views in all directions, incl. Blencathra",1762,Wainwright,Eastern Fells,Quiet walkers / Families,
+Skiddaw,Hard,18.3,54.6586,-3.1648,6,High Side near Bassenthwaite,Long sustained ascent,Classic route from Keswick / less travelled route from Bassenthwaite,Expansive views from summit across Northern Fells and Derwentwater,3054,Hewitt / Nuttall / Wainwright,Northern Fells,Fit hillwalkers,
+Great Gable,Hard,14.8,54.529,-3.204,5.9,Seatoller (Honister Pass),Steep ascent and scrambling near summit,From Seatoller up via Moses Trod and final rocky scramble,"Spectacular view of Wasdale, Pillar, Styhead Tarn",2948,Wainwright / Nuttall / Hewitt,Western Fells,Experienced walkers / Scramblers,
+Grasmoor,Hard,13,54.574,-3.31,6,Crummock Water (Buttermere shore),Very steep climb,Ascent from Crummock Water up path to ridge then to summit,"Great ridge views, including Crummock Water, Buttermere, and western fells",2828,Wainwright / Hewitt / Nuttall,North Western Fells,Strong walkers,
+Dollywaggon Pike,Hard,16,54.563,-2.997,6,Thirlmere (via Deepdale Hause),Rocky terrain and ridge walking,Part of Fairfield Horseshoe or via Deepdale Hause,"Close-up views of Helvellyn, Fairfield, and Thirlmere",2813,Wainwright / Nuttall / Hewitt,Eastern Fells,Experienced ridge walkers,
