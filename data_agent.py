@@ -6,9 +6,11 @@ class DataAgent:
 
     # Difficulty descriptions
     DIFFICULTY_DESCRIPTIONS = {
+        "very easy": "Very easy trails are extremely gentle and short, with minimal elevation changes. Perfect for beginners, families, or a relaxing stroll. Mostly flat and well-maintained paths.",
         "easy": "Easy trails are generally flat, short, and suitable for beginners. Elevation gain is minimal.",
         "moderate": "Moderate trails may include hills or uneven terrain, requiring a bit more stamina.",
-        "hard": "Hard trails are steep, long, and require good fitness, navigation skills, and proper gear."
+        "hard": "Hard trails are steep, long, and require good fitness, navigation skills, and proper gear.",
+        "very hard": "Very hard trails are long, steep, or rugged, requiring excellent fitness, navigation skills, and proper gear. Not recommended for beginners — only experienced hikers should attempt these routes."
     }
 
     def __init__(self, csv_path="data/lake_district_trails.csv"):

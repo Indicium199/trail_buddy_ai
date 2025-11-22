@@ -51,7 +51,7 @@ class RootAgent:
 
             # Clarification question
             if "what does" in user_msg.lower() or "explain" in user_msg.lower():
-                for level in ["easy", "moderate", "hard"]:
+                for level in ["very easy", "easy", "moderate", "hard", "very hard"]:
                     if level in user_msg.lower():
                         prompt = (
                             f"You are a helpful hiking guide. Explain clearly what a {level} trail is, "
@@ -62,16 +62,16 @@ class RootAgent:
                             return explanation
                         else:
                             return f"A {level} trail is suitable for beginners: generally short, relatively flat, and easy to walk."
-                return "Please specify Easy, Moderate, or Hard to get an explanation."
+                return "Please specify Very Easy, Easy, Moderate, Hard or Very Hard to get an explanation."
 
             # User selects difficulty
-            for level in ["easy", "moderate", "hard"]:
+            for level in ["very easy", "easy", "moderate", "hard", "very hard"]:
                 if level in user_msg.lower():
                     self.state["difficulty"] = level
                     self.state["awaiting_input"] = "max_distance"
                     return "Maximum distance in km?"
 
-            return "Please choose: Easy, Moderate, or Hard."
+            return "Please choose: Very Easy, Easy, Moderate, Hard or Very Hard."
 
         # Stage 2: Max distance
         if self.state["awaiting_input"] == "max_distance":
@@ -107,4 +107,4 @@ class RootAgent:
         # Start conversation if nothing is set
         if self.state["awaiting_input"] is None:
             self.state["awaiting_input"] = "difficulty_choice"
-            return "What kind of trail are you looking to do? (Easy/Moderate/Hard)"
+            return "What kind of trail are you looking to do? (Very Easy/Easy/Moderate/Hard/Very Hard)"
