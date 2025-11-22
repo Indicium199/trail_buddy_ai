@@ -8,10 +8,13 @@ class RootAgent:
 
     def __init__(self, model_name="gemini-2.5-flash"):
         # Load API key from .env
-        load_dotenv()
+        load_dotenv(dotenv_path="./.env")
         API_KEY = os.getenv("GEMINI_API_KEY")
-        if not API_KEY:
-            raise ValueError("GEMINI_API_KEY not found in environment. Please set it in .env")
+        if not API_KEY or API_KEY == "YOUR_API_KEY_HERE":
+            raise ValueError(
+                "GEMINI_API_KEY not found or still a placeholder. "
+                "Please set your real key in .env"
+            )
 
         self.client = genai.Client(api_key=API_KEY)
         self.model = model_name
@@ -30,7 +33,8 @@ class RootAgent:
             contents=prompt,
             config=types.GenerateContentConfig(max_output_tokens=max_output_tokens)
         )
-        return response.text
+        # Ensure always returns a string
+        return response.text if response.text else "Sorry, I couldn't generate a response."
 
     # --- Handle conversation ---
     def handle_user_message(self, user_msg, data_agent, planner_agent, communication_agent):
@@ -48,9 +52,16 @@ class RootAgent:
             if "what does" in user_msg.lower() or "explain" in user_msg.lower():
                 for level in ["easy", "moderate", "hard"]:
                     if level in user_msg.lower():
-                        # AI explanation
-                        prompt = f"Explain in simple terms what a {level} hiking trail is."
-                        return self.ask_gemini(prompt)
+                        prompt = (
+                            f"You are a helpful hiking guide. Explain clearly what a {level} trail is, "
+                            "including terrain, distance, and difficulty for beginners."
+                        )
+                        explanation = self.ask_gemini(prompt)
+                        if explanation:
+                            return explanation
+                        else:
+                            return f"A {level} trail is suitable for beginners: generally short, relatively flat, and easy to walk."
+                return "Please specify Easy, Moderate, or Hard to get an explanation."
 
             # User selects difficulty
             for level in ["easy", "moderate", "hard"]:
@@ -80,7 +91,8 @@ class RootAgent:
                     f"{filtered_trails}.\n"
                     f"Write a short, friendly summary for the user."
                 )
-                return self.ask_gemini(prompt)
+                summary = self.ask_gemini(prompt)
+                return summary if summary else "Here are the trails I found for you!"
 
             except ValueError:
                 return "Please enter a valid number for maximum distance in km."
@@ -89,4 +101,3 @@ class RootAgent:
         if self.state["awaiting_input"] is None:
             self.state["awaiting_input"] = "difficulty_choice"
             return "What kind of trail are you looking to do? (Easy/Moderate/Hard)"
-
