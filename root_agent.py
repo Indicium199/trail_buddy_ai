@@ -3,11 +3,63 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 
+
+# --- Friendly trail formatting function ---
+def format_trail_recommendations(trails, desired_difficulty, max_distance):
+    """
+    Format trail recommendations for the user.
+    Automatically detects the correct trail name key and capitalizes difficulty consistently.
+    """
+    if not trails:
+        return f"Sorry, no trails found within {max_distance} km for {desired_difficulty} difficulty."
+
+    # Determine the correct key for the trail name
+    sample_trail = trails[0]
+    if 'Trail' in sample_trail:
+        name_key = 'Trail'
+    elif 'name' in sample_trail:
+        name_key = 'name'
+    elif 'Name' in sample_trail:
+        name_key = 'Name'
+    elif 'trail_name' in sample_trail:
+        name_key = 'trail_name'
+    else:
+        print("DEBUG: Unknown trail keys:", list(sample_trail.keys()))
+        name_key = list(sample_trail.keys())[0]  # fallback
+
+    exact_matches = []
+    near_matches = []
+
+    for t in trails:
+        if t.get("Difficulty", "").lower() == desired_difficulty.lower():
+            exact_matches.append(t)
+        else:
+            near_matches.append(t)
+
+    formatted = "Hello there! 👋 I've found some trails for you to explore!\n\n"
+
+    if exact_matches:
+        formatted += f"**Exact difficulty matches ({len(exact_matches)}):**\n"
+        for t in exact_matches:
+            formatted += f" - {t.get(name_key)} ({t.get('Distance_km', '?')} km)\n"
+
+    if near_matches:
+        formatted += f"\n**Close options ({len(near_matches)}):**\n"
+        for t in near_matches:
+            formatted += f" - {t.get(name_key)} ({t.get('Distance_km', '?')} km, {t.get('Difficulty', '?').title()})\n"
+
+    if exact_matches:
+        longest_trail = max(exact_matches, key=lambda x: x.get("Distance_km", 0))
+        formatted += f"\nIf you're up for a challenge, consider: **{longest_trail.get(name_key)}** ({longest_trail.get('Distance_km', '?')} km)\n"
+
+    return formatted
+
+
+# --- RootAgent class ---
 class RootAgent:
     """Handles conversation, clarification, and AI responses via Gemini."""
 
     def __init__(self, model_name="gemini-2.5-flash"):
-        # Load API key from .env
         load_dotenv(dotenv_path="./.env")
         API_KEY = os.getenv("GEMINI_API_KEY")
         if not API_KEY or API_KEY == "YOUR_API_KEY_HERE":
@@ -19,12 +71,11 @@ class RootAgent:
         self.client = genai.Client(api_key=API_KEY)
         self.model = model_name
 
-        # Conversation state
         self.state = {
             "awaiting_input": None,   # "difficulty_choice" or "max_distance"
             "difficulty": None,
             "max_distance": None,
-            "selected_trail": None    # Store the chosen trail for weather lookup
+            "selected_trail": None
         }
 
     # --- Call Gemini AI ---
@@ -34,22 +85,12 @@ class RootAgent:
             contents=prompt,
             config=types.GenerateContentConfig(max_output_tokens=max_output_tokens)
         )
-        # Ensure always returns a string
         return response.text if response.text else "Sorry, I couldn't generate a response."
 
     # --- Handle conversation ---
     def handle_user_message(self, user_msg, data_agent, planner_agent, communication_agent):
-        """
-        user_msg: str - what user typed
-        data_agent: DataAgent instance
-        planner_agent: PlannerAgent instance
-        communication_agent: CommunicationAgent instance
-        """
-
         # Stage 1: Difficulty choice
         if self.state["awaiting_input"] == "difficulty_choice":
-
-            # Clarification question
             if "what does" in user_msg.lower() or "explain" in user_msg.lower():
                 for level in ["very easy", "easy", "moderate", "hard", "very hard"]:
                     if level in user_msg.lower():
@@ -58,10 +99,7 @@ class RootAgent:
                             "including terrain, distance, and difficulty for beginners."
                         )
                         explanation = self.ask_gemini(prompt)
-                        if explanation:
-                            return explanation
-                        else:
-                            return f"A {level} trail is suitable for beginners: generally short, relatively flat, and easy to walk."
+                        return explanation if explanation else f"A {level} trail is suitable for beginners: generally short, relatively flat, and easy to walk."
                 return "Please specify Very Easy, Easy, Moderate, Hard or Very Hard to get an explanation."
 
             # User selects difficulty
@@ -70,7 +108,6 @@ class RootAgent:
                     self.state["difficulty"] = level
                     self.state["awaiting_input"] = "max_distance"
                     return "Maximum distance in km?"
-
             return "Please choose: Very Easy, Easy, Moderate, Hard or Very Hard."
 
         # Stage 2: Max distance
@@ -80,26 +117,29 @@ class RootAgent:
                 self.state["max_distance"] = distance
                 self.state["awaiting_input"] = None
 
-                # Filter trails using PlannerAgent
+                # Get ranked trails using PlannerAgent
                 filtered_trails = planner_agent.get_trails_by_criteria(
                     difficulty=self.state["difficulty"],
                     max_distance=distance
                 )
 
-                # Store the first matching trail for weather lookup
-                if filtered_trails:
-                    self.state["selected_trail"] = filtered_trails[0]  # store trail dict
-                else:
-                    self.state["selected_trail"] = None
+                # Debug print for inspection
+                #if filtered_trails:
+                    #print("DEBUG: First trail dictionary keys:", list(filtered_trails[0].keys()))
+                    #print("DEBUG: First trail dictionary content:", filtered_trails[0])
+                #else:
+                    #print("DEBUG: No trails returned by PlannerAgent")
 
-                # AI summarization of filtered trails
-                prompt = (
-                    f"You are a friendly hiking assistant. Here are the trails found: "
-                    f"{filtered_trails}.\n"
-                    f"Write a short, friendly summary for the user."
+                # Store first matching trail for weather lookup
+                self.state["selected_trail"] = filtered_trails[0] if filtered_trails else None
+
+                # Format a friendly message
+                summary = format_trail_recommendations(
+                    filtered_trails,
+                    desired_difficulty=self.state["difficulty"],
+                    max_distance=distance
                 )
-                summary = self.ask_gemini(prompt)
-                return summary if summary else "Here are the trails I found for you!"
+                return summary
 
             except ValueError:
                 return "Please enter a valid number for maximum distance in km."
