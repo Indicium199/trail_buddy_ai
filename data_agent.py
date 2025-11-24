@@ -7,7 +7,7 @@ class DataAgent:
     # Difficulty descriptions
     DIFFICULTY_DESCRIPTIONS = {
         "very easy": "Very easy trails are extremely gentle and short, with minimal elevation changes. Perfect for beginners, families, or a relaxing stroll. Mostly flat and well-maintained paths.",
-        "easy": "Easy trails are generally flat, short, and suitable for beginners. Elevation gain is minimal.",
+        "easy": "Easy trails are generally short, and suitable for beginners. Elevation gain is minimal.",
         "moderate": "Moderate trails may include hills or uneven terrain, requiring a bit more stamina.",
         "hard": "Hard trails are steep, long, and require good fitness, navigation skills, and proper gear.",
         "very hard": "Very hard trails are long, steep, or rugged, requiring excellent fitness, navigation skills, and proper gear. Not recommended for beginners — only experienced hikers should attempt these routes."
@@ -26,7 +26,9 @@ class DataAgent:
                     "Difficulty": row["Difficulty"].lower(),
                     "Distance_km": float(row["Distance_km"]),
                     "Lat": float(row["Lat"]),
-                    "Lng": float(row["Lng"])
+                    "Lng": float(row["Lng"]),
+                    "Views": row.get("Views", ""),
+                    "Fell_Height": row.get("Fell_Height", "")
                 })
         return trails
 
