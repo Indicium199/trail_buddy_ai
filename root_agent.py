@@ -4,7 +4,7 @@ from google import genai
 from google.genai import types
 
 class RootAgent:
-    """Handles conversation, trail selection, weather, and nearby pubs/cafes via Gemini."""
+    """Handles conversation, trail selection, weather, and nearby pubs/cafes via Gemini and OSM."""
 
     def __init__(self, planner_agent, data_agent, communicator_agent, model_name="gemini-2.5-flash"):
         load_dotenv(dotenv_path="./.env")
@@ -27,8 +27,7 @@ class RootAgent:
             "difficulty": None,
             "max_distance": None,
             "trail_options": [],
-            "selected_trail": None,
-            "awaiting_pubs_cafes": False
+            "selected_trail": None
         }
 
     # ------------------------------
@@ -191,40 +190,37 @@ class RootAgent:
                         f"with a temperature of {weather['temperature']}°C and winds at {weather['windspeed']} km/h."
                     )
 
-                # --- NEW: Ask about pubs/cafes ---
-                self.state["awaiting_input"] = "confirm_pubs_cafes"
-                return f"{friendly_weather}\n\nWould you like a list of the nearest pubs and cafes to {trail['Trail']}?"
+                # Ask about pubs or cafes
+                self.state["awaiting_input"] = "pub_or_cafe_choice"
+                return f"{friendly_weather}\n\nWould you like a list of the nearest pubs or cafes to {trail['Trail']}?"
 
             else:
                 self.state["awaiting_input"] = None
                 return "Alright! Let me know if you want to plan a different trail."
 
-        # --- 6: Nearest pubs/cafes ---
-        if self.state["awaiting_input"] == "confirm_pubs_cafes":
+        # --- 6: Pubs or cafes selection ---
+        if self.state["awaiting_input"] == "pub_or_cafe_choice":
             trail = self.state["selected_trail"]
             lat = trail.get("Lat")
             lon = trail.get("Lng")
 
-            if user_msg_lower in ["yes", "y"]:
-                pubs_cafes = self.communicator_agent.get_nearby_pubs_cafes(
-                    lat, lon,
-                    api_key=os.getenv("GEMINI_API_KEY")
-                )
+            if user_msg_lower not in ["pub", "cafe"]:
+                return "Please type 'pub' or 'cafe'."
 
-                if pubs_cafes:
-                    formatted_list = "\n".join([
-                        f"{i+1}. {p['name']} – {p['distance']} km – {p['description']}"
-                        for i, p in enumerate(pubs_cafes)
-                    ])
-                    self.state["awaiting_input"] = None
-                    return f"Here are some great pubs and cafes near {trail['Trail']}:\n{formatted_list}"
-                else:
-                    self.state["awaiting_input"] = None
-                    return "Sorry, no nearby pubs or cafes were found."
+            # Call OSM-based free method
+            places = self.communicator_agent.get_nearby_pubs_cafes(
+                lat, lon,
+                place_type=user_msg_lower,
+                radius_km=5
+            )
 
-            else:
-                self.state["awaiting_input"] = None
-                return "No problem! Enjoy your hike! 🌄"
+            self.state["awaiting_input"] = None
+
+            if not places:
+                return f"No nearby {user_msg_lower}s found within 2 km."
+
+            formatted = [f"{i+1}. {p['name']} – {p['distance_km']} km" for i, p in enumerate(places)]
+            return f"Here are some nearby {user_msg_lower}s:\n" + "\n".join(formatted)
 
         # --- Default fallback ---
         return "I'm not sure how to respond to that. Please follow the prompts."

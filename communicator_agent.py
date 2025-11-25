@@ -1,43 +1,60 @@
 import requests
+import math
 
 class CommunicationAgent:
-    """Format responses for the user and fetch external data like nearby pubs/cafes."""
+    """Format responses for the user and fetch external data like nearby pubs/cafes using OSM."""
 
     def format_definition(self, definition):
         return f"{definition} Would you like to select this difficulty?"
 
-    def get_nearby_pubs_cafes(self, lat, lng, radius=3000, api_key=None):
+    # --- Haversine formula for accurate distance in km ---
+    @staticmethod
+    def haversine(lat1, lon1, lat2, lon2):
+        R = 6371  # Earth radius in km
+        phi1, phi2 = math.radians(lat1), math.radians(lat2)
+        dphi = math.radians(lat2 - lat1)
+        dlambda = math.radians(lon2 - lon1)
+        a = math.sin(dphi/2)**2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda/2)**2
+        return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+    def get_nearby_pubs_cafes(self, lat, lng, place_type="cafe", radius_km=5):
         """
-        Fetch nearby pubs and cafes using Google Places API.
-        Returns a list of dicts with name, distance, and description.
+        Fetch nearby pubs or cafes using OpenStreetMap / Overpass API.
+        Returns a list of dicts with name and distance.
+        place_type: "pub" or "cafe"
+        radius_km: search radius in km
         """
-        if api_key is None:
-            raise ValueError("Gemini API key is required.")
+        # Validate place type
+        if place_type not in ["pub", "cafe"]:
+            raise ValueError("place_type must be 'pub' or 'cafe'.")
 
-        places = []
-        # Types: cafe, bar, restaurant, pub
-        types = "cafe|bar|restaurant|pub"
+        # Convert radius to degrees (approx)
+        delta_deg = radius_km / 111  # 1 deg ~ 111 km
+        south, north = lat - delta_deg, lat + delta_deg
+        west, east = lng - delta_deg, lng + delta_deg
 
-        url = f"https://maps.googleapis.com/maps/api/place/nearbysearch/json"
-        params = {
-            "location": f"{lat},{lng}",
-            "radius": radius,
-            "type": types,
-            "key": api_key
-        }
-
-        response = requests.get(url, params=params)
+        # Overpass API query
+        overpass_url = "https://overpass-api.de/api/interpreter"
+        query = f"""
+        [out:json];
+        node
+          ["amenity"="{place_type}"]
+          ({south},{west},{north},{east});
+        out;
+        """
+        response = requests.get(overpass_url, params={"data": query})
         if response.status_code != 200:
             return []
 
         data = response.json()
-        for place in data.get("results", [])[:10]:  # limit to top 10
-            place_lat = place.get("geometry", {}).get("location", {}).get("lat", lat)
-            place_lng = place.get("geometry", {}).get("location", {}).get("lng", lng)
-            distance = round(((place_lat - lat)**2 + (place_lng - lng)**2)**0.5 * 111, 2)  # rough km
-            places.append({
-                "name": place.get("name"),
-                "distance": distance,
-                "description": place.get("vicinity", "No description")
-            })
-        return places
+        results = []
+
+        for elem in data.get("elements", []):
+            name = elem.get("tags", {}).get("name", "Unnamed")
+            elem_lat = elem.get("lat")
+            elem_lng = elem.get("lon")
+            distance = round(self.haversine(lat, lng, elem_lat, elem_lng), 2)
+            results.append({"name": name, "distance_km": distance})
+
+        # Sort by distance
+        return sorted(results, key=lambda x: x["distance_km"])

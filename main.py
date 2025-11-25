@@ -10,7 +10,7 @@ def main():
     load_dotenv(dotenv_path="./.env")
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
     if not GEMINI_API_KEY:
-        raise ValueError("Please set GOOGLE_API_KEY in your .env file.")
+        raise ValueError("Please set GEMINI_API_KEY in your .env file.")
 
     # --- Create the agents ---
     data_agent = DataAgent()
