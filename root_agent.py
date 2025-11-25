@@ -3,11 +3,10 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 
-# --- RootAgent class ---
 class RootAgent:
-    """Handles conversation, trail selection, and AI responses via Gemini."""
+    """Handles conversation, trail selection, weather, and nearby pubs/cafes via Gemini."""
 
-    def __init__(self, model_name="gemini-2.5-flash"):
+    def __init__(self, planner_agent, data_agent, communicator_agent, model_name="gemini-2.5-flash"):
         load_dotenv(dotenv_path="./.env")
         API_KEY = os.getenv("GEMINI_API_KEY")
         if not API_KEY or API_KEY == "YOUR_API_KEY_HERE":
@@ -19,139 +18,213 @@ class RootAgent:
         self.client = genai.Client(api_key=API_KEY)
         self.model = model_name
 
+        self.planner_agent = planner_agent
+        self.data_agent = data_agent
+        self.communicator_agent = communicator_agent
+
         self.state = {
-            "awaiting_input": None,          # difficulty_choice, max_distance, weather_choice
+            "awaiting_input": "difficulty_choice",
             "difficulty": None,
             "max_distance": None,
-            "trail_options": [],             # filtered trails
-            "selected_trail": None,          # currently selected trail
-            "trail_selection_loop": False    # True while user is exploring trails
+            "trail_options": [],
+            "selected_trail": None,
+            "awaiting_pubs_cafes": False
         }
 
-    # --- Call Gemini AI ---
-    def ask_gemini(self, prompt, max_output_tokens=200):
-        response = self.client.models.generate_content(
-            model=self.model,
-            contents=prompt,
-            config=types.GenerateContentConfig(max_output_tokens=max_output_tokens)
+    # ------------------------------
+    # Gemini wrapper
+    # ------------------------------
+    def ask_gemini(self, prompt, max_output_tokens=500):
+        """Call Gemini generate_content API to produce text."""
+        try:
+            response = self.client.models.generate_content(
+                model=self.model,
+                contents=prompt,
+                config=types.GenerateContentConfig(max_output_tokens=max_output_tokens)
+            )
+            if response and hasattr(response, "text") and response.text:
+                return response.text.strip()
+            return ""
+        except Exception as e:
+            print("DEBUG — Gemini error:", e)
+            return ""
+
+    # ------------------------------
+    # Trail description using Gemini
+    # ------------------------------
+    def generate_trail_description(self, trail):
+        name = str(trail.get("Trail", "Unknown"))
+        difficulty = str(trail.get("Difficulty", "Unknown"))
+        distance = str(trail.get("Distance_km", "Unknown"))
+        views = str(trail.get("Views", "N/A"))
+        route = str(trail.get("Route", "N/A"))
+        fell = str(trail.get("Fell_Height") or "N/A")
+
+        prompt = (
+            "You are a friendly, enthusiastic hiking guide. "
+            "Write 3–5 cheerful, natural sentences describing the trail below. "
+            "Include the 'Views' and 'Route' details naturally in the description — "
+            "do not just list them. Add small friendly touches like 'perfect for photos' or 'great for a morning hike'.\n\n"
+            f"Trail details:\n"
+            f"Name: {name}\n"
+            f"Difficulty: {difficulty}\n"
+            f"Distance (km): {distance}\n"
+            f"Views: {views}\n"
+            f"Route: {route}\n"
+            f"Fell height: {fell}\n\n"
+            "Write your paragraph below:"
         )
-        # Debug print to see raw AI response
-        # print("DEBUG: Gemini raw response:", response)
-        return getattr(response, "text", None) or "Sorry, I couldn't generate a response."
 
-    # --- Handle user message ---
-    def handle_user_message(self, user_msg, data_agent, planner_agent, communication_agent):
-        msg_lower = user_msg.lower().strip()
+        response = self.ask_gemini(prompt, max_output_tokens=500)
+        if response:
+            return response
 
-        # --- Trail selection loop ---
-        if self.state.get("trail_selection_loop"):
-            # Allow selection by number or exact trail name
-            trail = None
-            if msg_lower.isdigit():
-                index = int(msg_lower) - 1
-                if 0 <= index < len(self.state["trail_options"]):
-                    trail = self.state["trail_options"][index]
-            else:
-                trail = next((t for t in self.state["trail_options"] if t["Trail"].lower() == msg_lower), None)
+        return (
+            f"{name} is a {difficulty.lower()} trail, {distance} km long, "
+            f"with views such as {views}. Route: {route}. Fell height: {fell} ft."
+        )
 
-            if not trail:
-                return "Sorry, I didn't recognize that trail. Please choose one from the list."
+    # ------------------------------
+    # Conversation flow
+    # ------------------------------
+    def handle_user_message(self, user_msg):
+        user_msg_lower = user_msg.strip().lower()
 
-            self.state["selected_trail"] = trail
-
-            # AI-generated natural description
-            prompt = f"""
-            You are a friendly hiking guide. Write 2-3 cheerful sentences describing this trail naturally.
-            Include these details:
-            - Name: {trail['Trail']}
-            - Distance: {trail['Distance_km']} km
-            - Difficulty: {trail['Difficulty'].title()}
-            - Views: {trail.get('Views', 'No data')}
-            - Fell Height: {trail.get('Fell_Height', 'Unknown')} m
-            Always return a text description.
-            """
-            description = self.ask_gemini(prompt)
-            if not description or "Sorry" in description:
-                description = (
-                    f"{trail['Trail']} is a {trail['Difficulty'].title()} trail, {trail['Distance_km']} km long, "
-                    f"with views: {trail.get('Views', 'No data')} and a fell height of {trail.get('Fell_Height', 'Unknown')} m. "
-                    "It’s a great hike for a fun outdoor adventure!"
-                )
-
-            return description + "\n\nWould you like to select this trail or explore another one?"
-
-        # --- Confirm selection or explore another ---
-        if self.state.get("selected_trail") and self.state.get("trail_options"):
-            if "this" in msg_lower:
-                # User confirms trail
-                self.state["trail_selection_loop"] = False
-                self.state["awaiting_input"] = "weather_choice"
-                return "Great! Would you like to check the weather for this trail?"
-            elif "another" in msg_lower:
-                # Show trail list again
-                trail_list_text = "\n".join(f"{i+1}. {t['Trail']}" for i, t in enumerate(self.state["trail_options"]))
-                return f"Sure! Here are your options again:\n{trail_list_text}\nWhich trail would you like to explore next?"
-
-        # --- Difficulty choice ---
-        if self.state["awaiting_input"] == "difficulty_choice" or self.state["awaiting_input"] is None:
-            self.state["awaiting_input"] = "difficulty_choice"
-
-            # Explain difficulty if asked
-            if "what does" in msg_lower or "explain" in msg_lower:
-                for level in ["very easy", "easy", "moderate", "hard", "very hard"]:
-                    if level in msg_lower:
-                        prompt = (
-                            f"You are a helpful hiking guide. Explain clearly what a {level} trail is, "
-                            "including terrain, distance, and difficulty for beginners."
-                        )
-                        explanation = self.ask_gemini(prompt)
-                        return explanation if explanation else f"A {level} trail is suitable for beginners: generally short, relatively flat, and easy to walk."
-                return "Please specify Very Easy, Easy, Moderate, Hard or Very Hard to get an explanation."
-
-            # User selects difficulty
+        # --- 1: Difficulty choice ---
+        if self.state["awaiting_input"] == "difficulty_choice":
             for level in ["very easy", "easy", "moderate", "hard", "very hard"]:
-                if level in msg_lower:
+                if level in user_msg_lower:
                     self.state["difficulty"] = level
                     self.state["awaiting_input"] = "max_distance"
-                    return "Maximum distance in km?"
-            return "Please choose: Very Easy, Easy, Moderate, Hard or Very Hard."
+                    return "Great! What’s the maximum distance you’d like to hike (in km)?"
+            return "Please choose your hiking difficulty level: Very Easy, Easy, Moderate, Hard or Very Hard."
 
-        # --- Max distance ---
+        # --- 2: Max distance ---
         if self.state["awaiting_input"] == "max_distance":
             try:
                 distance = float(user_msg)
                 self.state["max_distance"] = distance
-                self.state["awaiting_input"] = None
 
-                filtered_trails = planner_agent.get_trails_by_criteria(
+                trails = self.planner_agent.get_trails_by_criteria(
                     difficulty=self.state["difficulty"],
                     max_distance=distance
                 )
 
-                if not filtered_trails:
-                    return "Sorry, no trails match your criteria."
+                self.state["trail_options"] = trails
+                self.state["awaiting_input"] = "trail_selection"
 
-                self.state["trail_options"] = filtered_trails
-                self.state["trail_selection_loop"] = True
+                trail_list = "\n".join([f"{i+1}. {t['Trail']}" for i, t in enumerate(trails)])
 
-                # Show numbered list for easier selection
-                trail_list_text = "\n".join(f"{i+1}. {t['Trail']}" for i, t in enumerate(filtered_trails))
-                return f"Here are the trails I found within your criteria:\n{trail_list_text}\n\nWhich trail catches your eye? You can type the number or the trail name."
-
+                return (
+                    f"Here are the trails I found within your criteria:\n{trail_list}\n\n"
+                    "Which trail catches your eye? You can type the number or the trail name."
+                )
             except ValueError:
-                return "Please enter a valid number for maximum distance in km."
+                return "Please enter a valid number for maximum distance."
 
-        # --- Weather choice ---
-        if self.state["awaiting_input"] == "weather_choice":
-            if "yes" in msg_lower:
-                trail = self.state["selected_trail"]
-                weather = data_agent.get_weather(trail["Lat"], trail["Lng"])
-                weather_desc = data_agent.map_weather_code(weather["weather_code"])
-                self.state["awaiting_input"] = "end"
-                return f"🌤️ The weather at {trail['Trail']} is {weather_desc}, temperature {weather['temperature']}°C, wind speed {weather['windspeed']} km/h."
+        # --- 3: Trail selection ---
+        if self.state["awaiting_input"] == "trail_selection":
+            trails = self.state["trail_options"]
+            selected = None
+
+            if user_msg_lower.isdigit():
+                index = int(user_msg_lower) - 1
+                if 0 <= index < len(trails):
+                    selected = trails[index]
             else:
-                self.state["awaiting_input"] = "end"
+                for t in trails:
+                    if t["Trail"].lower() == user_msg_lower:
+                        selected = t
+                        break
+
+            if selected:
+                self.state["selected_trail"] = selected
+                self.state["awaiting_input"] = "confirm_selection"
+
+                description = self.generate_trail_description(selected)
+                return f"{description}\n\nWould you like to select this trail or explore another one?"
+            else:
+                return "Sorry, I didn’t recognize that trail. Please choose one from the list."
+
+        # --- 4: Confirm trail selection ---
+        if self.state["awaiting_input"] == "confirm_selection":
+            if user_msg_lower in ["yes", "select", "this one"]:
+                self.state["awaiting_input"] = "confirm_weather"
+                return "Excellent choice! 🌄 Would you like the current weather for this trail?"
+            elif user_msg_lower in ["no", "another", "explore another"]:
+                self.state["awaiting_input"] = "trail_selection"
+                trail_list = "\n".join([f"{i+1}. {t['Trail']}" for i, t in enumerate(self.state["trail_options"])])
+                return (
+                    f"No problem! Here are the options again:\n{trail_list}\n\n"
+                    "Which trail would you like to explore?"
+                )
+            else:
+                return "Please answer yes/no or say 'another'."
+
+        # --- 5: Weather ---
+        if self.state["awaiting_input"] == "confirm_weather":
+            if user_msg_lower in ["yes", "y"]:
+                trail = self.state["selected_trail"]
+                lat = trail.get("Lat")
+                lon = trail.get("Lng")
+
+                weather = self.data_agent.get_weather(lat, lon)
+                weather_desc = self.data_agent.map_weather_code(weather["weather_code"])
+
+                summary = (
+                    f"Temperature: {weather['temperature']}°C, "
+                    f"Wind speed: {weather['windspeed']} km/h, "
+                    f"Condition: {weather_desc}"
+                )
+
+                prompt = (
+                    f"You are a friendly hiking assistant. "
+                    f"Here is the current weather at {trail['Trail']}: {summary}. "
+                    "Write a short, cheerful message to tell the user."
+                )
+
+                friendly_weather = self.ask_gemini(prompt)
+
+                if not friendly_weather:
+                    friendly_weather = (
+                        f"Hey! 🌤️ The weather at {trail['Trail']} is {weather_desc}, "
+                        f"with a temperature of {weather['temperature']}°C and winds at {weather['windspeed']} km/h."
+                    )
+
+                # --- NEW: Ask about pubs/cafes ---
+                self.state["awaiting_input"] = "confirm_pubs_cafes"
+                return f"{friendly_weather}\n\nWould you like a list of the nearest pubs and cafes to {trail['Trail']}?"
+
+            else:
+                self.state["awaiting_input"] = None
                 return "Alright! Let me know if you want to plan a different trail."
 
-        # --- Fallback ---
-        return "Sorry, I didn't understand that. Please try again."
+        # --- 6: Nearest pubs/cafes ---
+        if self.state["awaiting_input"] == "confirm_pubs_cafes":
+            trail = self.state["selected_trail"]
+            lat = trail.get("Lat")
+            lon = trail.get("Lng")
+
+            if user_msg_lower in ["yes", "y"]:
+                pubs_cafes = self.communicator_agent.get_nearby_pubs_cafes(
+                    lat, lon,
+                    api_key=os.getenv("GEMINI_API_KEY")
+                )
+
+                if pubs_cafes:
+                    formatted_list = "\n".join([
+                        f"{i+1}. {p['name']} – {p['distance']} km – {p['description']}"
+                        for i, p in enumerate(pubs_cafes)
+                    ])
+                    self.state["awaiting_input"] = None
+                    return f"Here are some great pubs and cafes near {trail['Trail']}:\n{formatted_list}"
+                else:
+                    self.state["awaiting_input"] = None
+                    return "Sorry, no nearby pubs or cafes were found."
+
+            else:
+                self.state["awaiting_input"] = None
+                return "No problem! Enjoy your hike! 🌄"
+
+        # --- Default fallback ---
+        return "I'm not sure how to respond to that. Please follow the prompts."

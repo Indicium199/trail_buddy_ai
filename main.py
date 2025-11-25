@@ -1,41 +1,39 @@
-# Import the different helper agent classes
-from data_agent import DataAgent                   # Handles storing & retrieving information
-from planner_agent import PlannerAgent             # Builds plans or steps based on the data
-from communicator_agent import CommunicationAgent  # Formats & communicates messages to the user
-from root_agent import RootAgent                   # Orchestrates the conversation and AI responses
+from data_agent import DataAgent
+from planner_agent import PlannerAgent
+from communicator_agent import CommunicationAgent  # NEW
+from root_agent import RootAgent
+import os
+from dotenv import load_dotenv
 
 def main():
-    # --- Create the agents ---
-    data_agent = DataAgent()                       # The "memory" agent for trail data & weather
-    planner_agent = PlannerAgent(data_agent)       # The "planning" agent that selects trails based on criteria
-    communication_agent = CommunicationAgent()     # The "conversation" agent for message formatting
-    root_agent = RootAgent()                       # The orchestrator that handles the user conversation
+    # --- Load environment variables ---
+    load_dotenv(dotenv_path="./.env")
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+    if not GEMINI_API_KEY:
+        raise ValueError("Please set GOOGLE_API_KEY in your .env file.")
 
-    # --- Initial user greeting ---
+    # --- Create the agents ---
+    data_agent = DataAgent()
+    planner_agent = PlannerAgent(data_agent)
+    communicator_agent = CommunicationAgent()  # NEW
+    root_agent = RootAgent(planner_agent, data_agent, communicator_agent)  # pass communicator_agent
+
+    # --- Initial greeting ---
     print("Hey! Your trail buddy is ready to plan a new adventure! ✔️\n")
 
-    # --- Start conversation with empty input ---
-    response = root_agent.handle_user_message(
-        "", data_agent, planner_agent, communication_agent
-    )
-    print("Agent:", response)
+    # --- Get the agent's first message before user types anything ---
+    initial_message = root_agent.handle_user_message("")  # empty string triggers initial prompt
+    print("Agent:", initial_message)
 
-    # --- Main conversation loop ---
+    # --- Conversation loop ---
     while True:
-        # Get input from the user
         user_input = input("You: ")
-
-        # Pass the user input to RootAgent for handling
-        response = root_agent.handle_user_message(
-            user_input, data_agent, planner_agent, communication_agent
-        )
-        print("Agent:", response)
-
-        # If the conversation is finished, break the loop
-        if root_agent.state.get("awaiting_input") == "end":
-            print("\nThanks for using Trail Buddy! Happy hiking! 🥾\n")
+        if user_input.lower() in ["exit", "quit"]:
+            print("\nThanks for using Trail Buddy! Have a great hike! 🌲🏞️")
             break
 
-# --- Run the program only if this file is executed directly ---
+        response = root_agent.handle_user_message(user_input)
+        print("Agent:", response)
+
 if __name__ == "__main__":
     main()

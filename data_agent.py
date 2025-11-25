@@ -28,7 +28,8 @@ class DataAgent:
                     "Lat": float(row["Lat"]),
                     "Lng": float(row["Lng"]),
                     "Views": row.get("Views", ""),
-                    "Fell_Height": row.get("Fell_Height", "")
+                    "Fell_Height": row.get("Fell_Height_ft", ""),
+                    "Route": row.get("Route", "")
                 })
         return trails
 

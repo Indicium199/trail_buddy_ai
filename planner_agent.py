@@ -25,8 +25,7 @@ class PlannerAgent:
         if trail["Distance_km"] <= max_distance:
             score += trail["Distance_km"] / max_distance  # normalized 0-1
         else:
-            # Penalize trails exceeding max_distance slightly (optional)
-            score -= 0.5
+            score -= 0.5  # Penalize trails exceeding max_distance slightly
 
         return score
 
@@ -60,3 +59,35 @@ class PlannerAgent:
             i = j
 
         return final_trails
+
+    # --- New method to generate natural-language trail description ---
+    def get_trail_details(self, trail_name, gemini_client):
+        """
+        Look up the trail row from CSV and ask Gemini to generate a friendly natural-language description.
+        """
+        trail_data = None
+        for t in self.trails:
+            if t["Trail"].lower() == trail_name.lower():
+                trail_data = t
+                break
+
+        if not trail_data:
+            return "I couldn't find details for that trail."
+
+        prompt = f"""
+You are an expert Lake District trail guide.
+
+Generate a friendly, vivid trail description for hikers based on the structured data below.
+Do NOT invent facts — stay close to the info provided.
+
+TRAIL NAME: {trail_data['Trail']}
+DISTANCE (km): {trail_data['Distance_km']}
+DIFFICULTY: {trail_data['Difficulty']}
+FELL HEIGHT (m): {trail_data.get('Fell_Height_ft', '?')}
+ROUTE SUMMARY: {trail_data.get('Route', 'N/A')}
+VIEWS / HIGHLIGHTS: {trail_data.get('Views', 'N/A')}
+
+Write a natural-sounding paragraph (4–6 sentences).
+"""
+        response = gemini_client.generate_content(prompt)
+        return response.text if response.text else f"{trail_name} is a great trail!"
